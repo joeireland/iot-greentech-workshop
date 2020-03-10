@@ -101,7 +101,8 @@ In this workshop, we will be using an angle sensor to simulate a thermocouple (w
 
    ![Configure Action](images/create-blue-on-rule.png)
    - Once the rule indicates it's enabled you may test it (refresh your browser until it indicates "enabled").
-   - Test the rule by pressing the button sensor on the Raspberry Pi. The red LED will flash for 1 second each time you press the button.
+   - Test the rule by turning the angle sensor until its value is over 75.
+   - Once over 75 the blue LED will turn on.
 
 ### 3. Create an IoT rule to turn off the cooler when temperature < 50F
 In this workshop, we will be using an angle sensor to simulate a thermocouple (which measures temperature) since it is more easily manipuated for our testing. Additionally, we will use the blue LED to indicate that the water cooler is turned **on** or **off**.
@@ -140,7 +141,8 @@ In this workshop, we will be using an angle sensor to simulate a thermocouple (w
 
    ![Configure Action](images/create-blue-off-rule.png)
    - Once the rule indicates it's enabled you may test it (refresh your browser until it indicates "enabled").
-   - Test the rule by turning the angle sensor. When the angle sensor is > 80 the buzzer will beep for 1 second.
+   - Test the rule by turning the angle sensor until its value is under 50.
+   - Once under 50 the blue LED will turn off.
 
 ### 4. Create advanced IoT rule that places a phone call when temperature < 32F (Below Freezing)
    **PART 1:** Create a Lambda function which will act as the rule's action
@@ -299,4 +301,5 @@ exports.handler = async (event) => {
    
    ![Configure Action](images/create-makecall-rule-done.png)
   - Once the rule indicates it's enabled you may test it (refresh your browser until it indicates "enabled").
-  - Test the rule by turning the angle sensor. When the angle sensor is > 95 your cell phone will ring and when answered will play a message.
+   - Test the rule by turning the angle sensor until its value is under 32.
+   - Once under 32 your cell phone will ring and when answered will play a message.
