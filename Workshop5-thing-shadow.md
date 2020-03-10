@@ -4,8 +4,6 @@ In a perfect world your IoT device will be connected to the Internet 24x7x365. H
 
 ### Architecture
 
-16x = 10*9/16
-
    ![Architecture](images/architecture-thing-shadows.png)
 
 
