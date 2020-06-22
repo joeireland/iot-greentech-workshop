@@ -1,11 +1,11 @@
 # PART 4: Web-based HMI (Human-Machine Interface)
 
-In this lab you will create a web-based, Human-Machine Interface (HMI) to monitor and control your Raspberry Pi and its connected Grove Pi+ sensors. Specifically, you will spin up an EC2 instance and install Node-RED (https://nodered.org/) and its **node-red-dashboard** module (https://flows.nodered.org/node/node-red-dashboard) to create a real-time dashboard to monitor and control your IoT Devices.
+In this lab you will create a web-based, Human-Machine Interface (HMI) to monitor and control your virtual IoT device and its connected virtual sensors. Specifically, you will spin up an EC2 instance and install Node-RED (https://nodered.org/) and its **node-red-dashboard** module (https://flows.nodered.org/node/node-red-dashboard) to create a real-time dashboard to monitor and control your IoT Devices.
 
 ### Architecture
 
+   ![Architecture](images/architecture-web-based-hmi-virtdev.png)
 
-   ![Architecture](images/architecture-web-based-hmi.png)
 
 ### 1. Launch EC2 Instance running Amazon Linux 2
 
@@ -100,7 +100,7 @@ In this lab you will create a web-based, Human-Machine Interface (HMI) to monito
 
    ![Install Node Red](images/install-node-red.png)
 
-### 4. Create HMI Dashboard to send commands to your Raspberry Pi
+### 4. Create HMI Dashboard to send commands to your virtual IoT device
 
    - Open another tab in Chrome
    - Enter a URL of **http://YOUR-EC2-INSTANCE-PUBLIC-IP-ADDRESS**
@@ -203,12 +203,12 @@ In this lab you will create a web-based, Human-Machine Interface (HMI) to monito
 
    - Open a new browser tab to view your dashboard in
    - Enter a URL of **http://YOUR-EC2-INSTANCE-PUBLIC-IP-ADDRESS/ui**
-   - Press the **Beep** button and your Raspberry Pi will beep
+   - Press the **Beep** button and your virtual Device will beep
 
 
    ![Created MQTT Config](images/test-dashboard1.png)
 
-### 5. Modify HMI Dashboard to display IoT telemetry data from Raspberry Pi
+### 5. Modify HMI Dashboard to display IoT telemetry data from your virtual device
 
    - Drag and Drop **mqtt in** from the pallet on the left onto the dashboard
 
@@ -250,6 +250,7 @@ In this lab you will create a web-based, Human-Machine Interface (HMI) to monito
 
    - Edit **Chart** by double-clicking it
    - Select a Group of **[IoT Workshop] Default**
+   - Enter a Label of **Water Temperature**
    - Press the **Done** button
 
 
@@ -262,6 +263,7 @@ In this lab you will create a web-based, Human-Machine Interface (HMI) to monito
 
    - Edit **Gauge** by double-clicking it
    - Select a Group of **[IoT Workshop] Default**
+   - Enter a Label of **Water Temperature**
    - Enter Units equal to **F**
    - Enter a min of **0**
    - Enter a max of **100**
@@ -271,8 +273,8 @@ In this lab you will create a web-based, Human-Machine Interface (HMI) to monito
    ![Edit Gauge](images/edit-gauge.png)
 
    - Connect MQTT to Extract Value Function
-   - Connect Extract Value Function to Chart
-   - Connect Extract Value Function to Gauge
+   - Connect Extract Value Function to the Water Temperture Chart
+   - Connect Extract Value Function to the Water Temperture Gauge
 
 
    ![Connect](images/connect-mqtt-func-chart-gauge.png)
@@ -283,7 +285,7 @@ In this lab you will create a web-based, Human-Machine Interface (HMI) to monito
    ![Created MQTT Config](images/deploy-dashboard2.png)
 
    - Go back to your browser tab with the IoT Dashboard in it
-   - Turn the angle sensor on your Raspberry Pi and see the chart and gauge on your dashboard change
+   - Move the slider of your virtual IoT device and see the chart and gauge on your dashboard change
 
 
    ![Created MQTT Config](images/test-dashboard2.png)
@@ -292,4 +294,4 @@ In this lab you will create a web-based, Human-Machine Interface (HMI) to monito
 
 # Continue Workshop
 
-[Part 5 - Thing Shadows](./Workshop5-thing-shadow.md)
+[Part 5 - Thing Shadows](./Workshop5-Virtual-thing-shadow.md)

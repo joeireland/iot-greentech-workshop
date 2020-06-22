@@ -1,72 +1,76 @@
 # PART 5: Thing Shadows
 
-In a perfect world your IoT device will be connected to the Internet 24x7x365. However, there are scenarios where this just doesn't hold true. Specifically, there could be ISP outages, Internet outages due to power failures or design-level contraints where your IoT device is solar powered and must be constrained to only connect during select intervals. In order to help ease the control of your IoT devices in these situations, the AWS IoT Core system provides the **Device Shadow Service**. In this lab you will enhance your Raspberry Pi program to make use of a **Device Shadow** so that IoT client applications can get and set its state over MQTTS or HTTPS, regardless of whether it is connected to the Internet. Specifically, your application gets and sets the state of the device shadow and your device will synchronize its state with its device shadow when connectivity is re-established.
+In a perfect world your IoT device will be connected to the Internet 24x7x365. However, there are scenarios where this just doesn't hold true. Specifically, there could be ISP outages, Internet outages due to power failures or design-level contraints where your IoT device is solar powered and must be constrained to only connect during select intervals. In order to help ease the control of your IoT devices in these situations, the AWS IoT Core system provides the **Device Shadow Service**. In this lab you will enhance your virtual IoT device program to make use of a **Device Shadow** so that IoT client applications can get and set its state over MQTTS or HTTPS, regardless of whether it is connected to the Internet. Specifically, your application gets and sets the state of the device shadow and your device will synchronize its state with its device shadow when connectivity is re-established.
 
 ### Architecture
 
-   ![Architecture](images/architecture-thing-shadows.png)
+   ![Architecture](images/architecture-thing-shadows-virtdev.png)
 
 
-### 1. SSH onto Raspberry PI using Chrome SSH App
+### 1. SSH onto your virtual IoT device
 
    - Launch the **Google Chrome Secure Shell App**
-   - Enter a username of **pi**, the IP address displayed on the LCD screen connected to your Raspberry Pi, enter port **80** and press the **[ENTER] Connect** button.
-
-   
-   **NOTE: The password to use when logging in is written on your Raspberry Pi case. Also note that the IP address assigned to your Raspberry Pi may differ from the example shown in the screen capture below.**
+   - Enter a username of **ec2-user**, the IP address your EC2 instance, enter port **22**, select an Identity of **iot-virtual-device.pem** and press the **[ENTER] Connect** button.
 
 
-   ![SSH to Raspberry Pi](images/ssh-to-raspberry-pi.png)
+   ![SSH to Virtual Device](images/ssh-to-virtdev.png)
 
 ### 2. Update your application to use a Thing Shadow
 
-   pi@raspberrypi:~ $ **cd ~/Development/iot-workshop**<br>
+   [ec2-user@ip-172-31-29-44 ~]$ **cd ~/iot-greentech-device-simulator-master**<br>
+   [ec2-user@ip-172-31-29-44 ~]$ **npm install -s condition-variable**<br>
 
-   ![npm init](images/nano-edit.png)
+   ![npm init](images/nano-edit6.png)
 
-   pi@raspberrypi:~ $ **nano index.js**<br>
+   [ec2-user@ip-172-31-29-44 ~]$ **nano index.js**<br>
    
    Copy and paste the following code into the nano edit session and save the file.<br>
    **IMPORTANT:** Replace the **host:** value with the Custom Endpoint value you took note of earlier<br>
 
 <pre>
 const AWSIoT  = require('aws-iot-device-sdk');
-const Display = require('./display');</b>
-const GrovePi = require('grovepi').GrovePi;
-const Board   = GrovePi.board;
-const Sensors = GrovePi.sensors;
+<b style="color:red">const CondVar  = require('condition-variable');</b>
+const express  = require('express');
+const http     = require('http');
+const minimist = require('minimist');
+const WS       = require('ws');
 
-const red    = new Sensors.DigitalOutput(2);
-const blue   = new Sensors.DigitalOutput(3);
-const buzzer = new Sensors.DigitalOutput(8);
-const prox   = new Sensors.UltrasonicDigital(7);
-const angle  = new Sensors.RotaryAnalog(0);
+const DEFAULT_PORT = 8080;
+
+const app    = express();
+const server = http.createServer(app);
+const wss    = new WS.Server({ server });
 
 const DETECT_PROXIMITY = 5;
 const DETECT_DURATION  = 2;    // 2 secs
 const DISPENSE_RATE    = 200;  // 200 ml/sec
-const PROCESS_INTERVAL = 1000; // 1000 msecs
+const MONITOR_INTERVAL = 1000; // 1000 msecs
 
 const IDLE     = 0;
 const DETECTED = 1;
 const FILLING  = 2;
 
-<b style="color:red">let ver         = 0;</b>
 let device      = null;
 let state       = IDLE; // IDLE, DETECTED or FILLING (Default = IDLE)
-let proximity   = 200;  // 0 = nearest, 200 = farthest (Default = 200)
+let prox        = 200;  // 0 = nearest, 200 = farthest (Default = 200)
 let temperature = 70;   // Fahrenheit (Default =70)
 let time        = Date.now();
 let total       = { filled: 0, volume: 0 };
+<b style="color:red">let ver         = 0;
+let online      = new CondVar();
+</b>
 
 function main() {
-  const board = new Board({
-    debug: true,
-    onError: onGroveError,
-    onInit: onGroveInit
-  });
+  let args = minimist(process.argv.slice(2));
+  let port = args.port || DEFAULT_PORT;
 
-  board.init();
+  app.use('/', express.static('./web'));
+
+  wss.on('connection', onWebSocketConnect);
+
+  server.listen(port, () => {
+    console.log('Listening: port=' + server.address().port);
+  });
 
   device = AWSIoT.device({
     keyPath:  './certs/private.pem',
@@ -81,7 +85,7 @@ function main() {
   });
 
   device.on('connect', onConnect);
-  device.on('message', onMessage);</b>
+  device.on('message', onMessage);
 }
 
 function onConnect() {
@@ -89,10 +93,13 @@ function onConnect() {
   device.subscribe('mything/beep');
   device.subscribe('mything/red/#');
   device.subscribe('mything/blue/#');
-  <b style="color:red">device.subscribe('$aws/things/mything/shadow/get/accepted');</b>
-  <b style="color:red">device.subscribe('$aws/things/mything/shadow/update/delta');</b>
-  device.publish('mything/dispenser', '{ "state": "idle", "time": ' + Date.now() + ' }');
-  <b style="color:red">device.publish('$aws/things/mything/shadow/get', '');</b>
+  <b style="color:red">device.subscribe('$aws/things/mything/shadow/get/accepted');
+  device.subscribe('$aws/things/mything/shadow/update/delta');
+
+  online.wait(() => {
+    device.publish('mything/dispenser', '{ "state": "idle", "time": ' + Date.now() + ' }');
+    device.publish('$aws/things/mything/shadow/get', '');
+  });</b>
 }
 
 function onMessage(topic, buffer) {
@@ -100,20 +107,18 @@ function onMessage(topic, buffer) {
     beep();
   }
   else if (topic === 'mything/red/on') {
-    red.turnOn();
+    red(1);
   }
   else if (topic === 'mything/red/off') {
-    red.turnOff();
+    red(0);
   }
   else if (topic === 'mything/blue/on') {
-    blue.turnOn();
-    <b style="color:red">reportState('on');</b>
+    blue(1);
   }
   else if (topic === 'mything/blue/off') {
-    blue.turnOff();
-    <b style="color:red">reportState('off');</b>
-  }<b style="color:red">
-  else if (topic === '$aws/things/mything/shadow/get/accepted') {
+    blue(0);
+  }
+  <b style="color:red">else if (topic === '$aws/things/mything/shadow/get/accepted') {
     console.log('shadow/get/accepted');
     updateState(buffer);
   }
@@ -123,77 +128,101 @@ function onMessage(topic, buffer) {
   }</b>
 }
 
-function onGroveError(err) {
-  console.log('ERROR: ' + JSON.stringify(err));
+function onWebSocketConnect(ws, req) {
+  console.log('WebSocket Connected');
+
+  ws.on('message', onWebSocketMessage);
+  setInterval(monitor, MONITOR_INTERVAL);
+  <b style="color:red">online.complete();</b>
+
+  flash();
+  beep();
 }
 
-function onGroveInit(res) {
-  console.log('GrovePi initialized');
-  monitorAngle();
-  monitorProximity();
-  setInterval(process, PROCESS_INTERVAL);
+function onWebSocketMessage(message) {
+  let msg = JSON.parse(message);
+
+  if (msg.sensor === 'angle') {
+    console.log('Angle: ' + msg.value);
+    angle(msg.value);
+    temperature = msg.value;
+    device.publish('mything/temperature', '{ "value":' + temperature + ' }');
+  }
+  else if (msg.sensor === 'proximity') {
+    console.log('Proximity: ' + msg.value);
+    proximity(msg.value);
+    prox = msg.value;
+  }
+}
+
+function flash() {
+  console.log('Flash');
+
+  red(1);
+  setTimeout(() => { red(0); }, 1000);
 }
 
 function beep() {
   console.log('Beep');
-  buzzer.turnOn();
-  setTimeout(() => { buzzer.turnOff(); }, 1000);
+
+  buzzer(1);
+  setTimeout(() => { buzzer(0); }, 1000);
 }
 
-function monitorAngle() {
-  console.log('Monitor Angle ...');
-
-  angle.on('change', res => {
-    temperature = res;
-    device.publish('mything/temperature', '{ "value":' + temperature + ' }');
-  });
-
-  angle.watch(1000);
+function red(value) {
+  send({ command: 'red', value: value });
 }
 
-function monitorProximity() {
-  console.log('Monitor Proximity ...');
-
-  prox.on('change', res => {
-    proximity = res;
-  });
-
-  prox.watch(1000);
+function blue(value) {
+  send({ command: 'blue', value: value });
+  <b style="color:red">reportState(value ? 'on' : 'off');</b>
 }
 
-function process() {
+function angle(value) {
+  send({ command: 'angle', value: value });
+}
+
+function proximity(value) {
+  send({ command: 'proximity', value: value });
+}
+
+function buzzer(value) {
+  send({ command: 'buzzer', value: value });
+}
+
+function monitor() {
   let now       = Date.now();
   let duration  = Math.floor((now - time) / 1000);
 
   if (state === IDLE) {
-    if (proximity > DETECT_PROXIMITY) {
-      display('Idle', proximity, Display.GREEN);
+    if (prox > DETECT_PROXIMITY) {
+      display('Idle', prox, total.filled, 'green');
     }
     else {
       state = DETECTED;
       time  = now;
-      display('Detected', proximity, Display.BLUE, 0);
+      display('Detected', prox, total.filled, 'blue', 0);
       device.publish('mything/dispenser', '{ "state":"detected" , "time":' + now + ' }');
     }
   }
   else if (state === DETECTED) {
-    if (proximity > DETECT_PROXIMITY) {
+    if (prox > DETECT_PROXIMITY) {
       state = IDLE;
-      display('Idle', proximity, Display.GREEN);
+      display('Idle', prox, total.filled, 'green');
       device.publish('mything/dispenser', '{ "state":"idle", "time":' + now + ' }');
     }
     else if (duration >= DETECT_DURATION) {
       state = FILLING;
       time  = now;
-      display('Filling', proximity, Display.RED, duration);
+      display('Filling', prox, total.filled, 'red', duration);
       device.publish('mything/dispenser', '{ "state":"filling", "time":' + now + ' }');
     }
     else {
-      display('Detected', proximity, Display.BLUE, duration);
+      display('Detected', prox, total.filled, 'blue', duration);
     }
   }
   else if (state == FILLING) {
-    if (proximity > DETECT_PROXIMITY) {
+    if (prox > DETECT_PROXIMITY) {
       let dispensed = duration * DISPENSE_RATE;
 
       state = IDLE;
@@ -201,28 +230,38 @@ function process() {
       total.volume += dispensed;
       beep();
 
-      display('Idle', proximity, Display.GREEN);
+      display('Idle', prox, total.filled, 'green');
       device.publish('mything/dispenser', '{ "state":"idle", "time":' + now + ' }');
       device.publish('mything/bottle', '{ "total":{ "filled":' + total.filled + ', "volume":' + total.volume + '},' +
                                           '"time":' + now + ', "duration":' + duration + ', "volume":' + dispensed + ' }');
     }
     else {
-      display('Filling', proximity, Display.RED, duration);
+      display('Filling', prox, total.filled, 'red', duration);
     }
   }
 }
 
-function display(state, proximity, color, duration) {
+function display(state, prox, filled, color, duration) {
+  let text = 'Filled: ' + filled + '&lt;br&gt;' + state + '[' + prox + ']';
+
   if (duration) {
-    Display.setText('Filled: ' + total.filled + '\n' + state + '[' + proximity + ']: ' + duration + 's', 1, color);
+    text += ': ' + duration + 's';
   }
-  else {
-    Display.setText('Filled: ' + total.filled + '\n' + state + '[' + proximity + ']', 1, color);
-  }
+
+  console.log(text);
+  send({ command: 'display', text: text, color: color });
+}
+
+function send(command) {
+  wss.clients.forEach((ws) => {
+    if (ws.readyState === WS.OPEN) {
+      ws.send(JSON.stringify(command));
+    }
+  });
 }
 <b style="color:red">
 function updateState(buffer) {
-  console.log('Update State');
+  console.log('Update State: ' + buffer);
 
   try {
     let message = JSON.parse(buffer.toString());
@@ -232,12 +271,12 @@ function updateState(buffer) {
 
       if (message.state.blue === 'on') {
         console.log('State: Blue=ON');
-        blue.turnOn();
+        blue(1);
         reportState('on');
       }
       else {
         console.log('State: Blue=OFF');
-        blue.turnOff();
+        blue(0);
         reportState('off');
       }
     }
@@ -255,8 +294,9 @@ main();
 </pre>
 
    - Start the application and connect your thing to AWS IoT Core<br>
-   pi@raspberrypi:~ $ **cd ~/Development/iot-workshop**<br>
-   pi@raspberrypi:~ $ **node index.js**
+   [ec2-user@ip-172-31-29-44 ~]$ **cd ~/iot-greentech-device-simulator-master**<br>
+   [ec2-user@ip-172-31-29-44 ~]$ **sudo killall node**<br>
+   [ec2-user@ip-172-31-29-44 ~]$ **sudo node index.js --port=80**<br>
 
 
 ### 3. Test Connected Device Operations Using The Thing Shadow
@@ -278,7 +318,7 @@ main();
   }
 </pre>
    - Press the **Publish to topic** button<br>
-**Notice that the Raspberry Pi's blue LED turns on**
+**Notice that the virtual device's blue LED turns on**
 
 
    ![MyThing Publish](images/publish-shadow-blue-on.png)
@@ -307,7 +347,7 @@ main();
   }
 </pre>
    - Press the **Publish to topic** button<br>
-**Notice that the Raspberry Pi's blue LED turns off**
+**Notice that the virtual device's blue LED turns off**
 
 
    ![MyThing Publish](images/publish-shadow-blue-off.png)
@@ -321,11 +361,11 @@ main();
 
 ### 4. Test Disconnected Device Operations Using The Thing Shadow
 
-**Go to the tab pane where you opened the SSH session to your Raspberry Pi**
+**Go to the tab pane where you opened the SSH session to your virtual IoT device**
    - Stop the running program by pressing Control-C (This will simulate a lost network connection)
 
 
-   ![MyThing Subscribe](images/stop-program.png)
+   ![MyThing Subscribe](images/stop-program-virtdev.png)
 
 **Go back to the tab pane where you opened the Thing Test page to publish messages**
    - Specify a topic of **$aws/things/mything/shadow/update**
@@ -340,7 +380,7 @@ main();
   }
 </pre>
    - Press the **Publish to topic** button<br>
-**Notice that the Raspberry Pi's blue LED remains off**
+**Notice that the virtual device's blue LED remains off**
 
 **Go back to the tab pane where you opened the Thing Shadow**
 
@@ -349,12 +389,13 @@ main();
 
    ![MyThing Subscribe](images/thing-shadow-blue-on-off.png)
 
-**Go to the tab pane where you opened the SSH session to your Raspberry Pi**
-   - Start the program running again (This will simulate the network restablishing connectivity)
+**Go to the tab pane where you opened the SSH session to your virtual device**
+   - Start the program running again (This will simulate the network restablishing connectivity)<br>
+   [ec2-user@ip-172-31-29-44 ~]$ **sudo node index.js --port=80**
 
 
-   ![MyThing Subscribe](images/start-program.png)
-**Notice that the Raspberry Pi's blue LED turns on**
+   ![MyThing Subscribe](images/start-program-virtdev.png)
+**Notice that the virtual device's blue LED turns on**
 
 **Go back to the tab pane where you opened the Thing Shadow**
 
@@ -363,6 +404,4 @@ main();
 
    ![MyThing Subscribe](images/thing-shadow-blue-on2.png)
 
-# Continue Workshop
-
-[Part 6 - Greengrass Machine Learning @ The Edge](./Workshop6-greengrass.md)
+# Congratulations, Workshop Complete!!!

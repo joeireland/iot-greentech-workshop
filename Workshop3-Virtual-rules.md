@@ -1,11 +1,11 @@
 # PART 3: AWS IoT Rules
 
-In this lab you will create IoT rules to sense and respond to IoT telemetry events published from your Raspberry Pi's connected Grove Pi+ sensors. Specifically, you will write rules to monitor the water temperature of the water dispensor and respond with actions to turn on/off the cooler based on configured water temperature values. You will step-wise progress to create more advanced rules. Ultimately, you will finish with creating an advanced IoT rule which will make use of a Lambda function to create a phone call to your cell phone to play a notification message to you.
+In this lab you will create IoT rules to sense and respond to IoT telemetry events published from your virual IoT device and its simulated sensors. Specifically, you will write rules to monitor the water temperature of the water dispensor and respond with actions to turn on/off the cooler based on configured water temperature values. You will step-wise progress to create more advanced rules. Ultimately, you will finish with creating an advanced IoT rule which will make use of a Lambda function to create a phone call to your cell phone to play a notification message to you.
 
 ### Architecture
 
 
-   ![Select Region](images/architecture-iot-rules.png)
+   ![Select Region](images/architecture-iot-rules-virtdev.png)
 
 ### 1. Create an IAM Role for use when executing your IoT Rule Actions
    - Select **Services/IAM** and select **Roles**
@@ -148,23 +148,23 @@ In this workshop, we will be using an angle sensor to simulate a thermocouple (w
    **PART 1:** Create a Lambda function which will act as the rule's action
 
    - Launch the **Google Chrome Secure Shell App**
-   - Enter a username of **pi**, the IP address displayed on the LCD screen connected to your Raspberry Pi and press the **[ENTER] Connect** button. Note that the password to use when logging in is written on your Raspberry Pi case. Also note that the IP address assigned to your Raspberry Pi may differ from the example shown in the screen capture below.
+   - Enter a username of **ec2-user**, the IP address of your EC2 instance, enter port 22, select an Identity of **iot-virtual-device.pem** and press the **[ENTER] Connect** button.
 
 
-   ![SSH to Raspberry Pi](images/ssh-to-raspberry-pi.png)
+   ![SSH to Raspberry Pi](images/ssh-to-virtdev.png)
 
-   pi@raspberrypi:~ $ **cd ~/Development**<br>
-   pi@raspberrypi:~ $ **mkdir iot-workshop-lambda**<br>
-   pi@raspberrypi:~ $ **cd iot-workshop-lambda**<br>
-   pi@raspberrypi:~ $ **npm init** *(when prompted press enter to select the default value)*<br>
-   pi@raspberrypi:~ $ **npm -s install twilio**<br>
+   [ec2-user@ip-172-31-29-44 ~]$ **cd ~/**<br>
+   [ec2-user@ip-172-31-29-44 ~]$ **mkdir iot-workshop-lambda**<br>
+   [ec2-user@ip-172-31-29-44 ~]$ **cd iot-workshop-lambda**<br>
+   [ec2-user@ip-172-31-29-44 ~]$ **npm init** *(when prompted press enter to select the default value)*<br>
+   [ec2-user@ip-172-31-29-44 ~]$ **npm -s install twilio**<br>
 
 
    ![Nano Edit](images/edit-lambda1.png)
    - Use your favorite text editor to create a file named **index.js**.
 
 
-   pi@raspberrypi:~ $ **nano index.js**<br>
+   [ec2-user@ip-172-31-29-44 ~]$ **nano index.js**<br>
 
 
    ![Nano Edit](images/nano-edit4.png)
@@ -212,18 +212,15 @@ exports.handler = async (event) => {
 
    - If using **nano** to edit the file then press **CTRL-X** to Exit and **Y** when prompted to save it
    - Once the file is saved, create a zip file of the Lambda function so we can deploy it to AWS<br><br>
-   pi@raspberrypi:~ $ **zip -r makecall.zip index.js node_modules package.json package-lock.json**<br><br>
+   [ec2-user@ip-172-31-29-44 ~]$ **zip -r makecall.zip index.js node_modules package.json package-lock.json**<br><br>
    - Launch the **Google Chrome Secure Shell App** in another tab to start a SFTP session
-   - Enter a username of **pi**, the IP address displayed on the LCD screen connected to your Raspberry Pi and press the **SFTP** button.
-   
-   
-   **NOTE: The password to use when logging in is written on your Raspberry Pi case. Also note that the IP address assigned to your Raspberry Pi may differ from the example shown in the screen capture below.**
+   - Enter a username of **ec2-user**, the IP address of your EC2 instance, enter port 22, select an Identity of **iot-virtual-device.pem** and press the **SFTP** button.
 
 
-   ![SFTP Raspberry Pi](images/sftp-raspberry-pi.png)
+   ![SFTP Raspberry Pi](images/sftp-virtual-device.png)
 
-   nasftp ./ > **cd ~/Development/iot-workshop-lambda**<br>
-   nasftp /home/pi/Development/iot-workshop-lambda/ > **get makecall.zip**<br>
+   nasftp ./ > **cd ~/iot-workshop-lambda**<br>
+   nasftp /home/ec2-user/iot-workshop-lambda/ > **get makecall.zip**<br>
 
    ![SFTP Raspberry Pi](images/sftp-raspberry-pi-get-file-makecall.png)
 
@@ -306,4 +303,4 @@ exports.handler = async (event) => {
 
 # Continue Workshop
 
-[Part 4 - Web-based HMI (Human-Machine Interface)](./Workshop4-HMI.md)
+[Part 4 - Web-based HMI (Human-Machine Interface)](./Workshop4-Virtual-HMI.md)
