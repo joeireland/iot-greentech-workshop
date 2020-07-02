@@ -158,16 +158,16 @@ In this lab you will install and configure your virtual IoT device for use by th
 
    ![Virtual Device Startup](images/iot-virtual-device-startup.png)
 
-   - Press the push **Button** to simulate pressing the button
-   - Move the **Slider** back and forth to simulate changing the angle sensor
+   - Move the **Proximity Slider** back and forth to simulate moving a water bottle in and out of the water station.
+   - Move the **Angle Slider** back and forth to simulate water temperature changes.
 
 
    ![Virtual Device Testing](images/iot-virtual-device-testing.png)
 
-   - Notice the button and angle change events detected by the simulator
+   - Notice the proxmity and angle change events detected by the simulator
 
 
-   ![Virtual Device Testing](images/iot-virtual-device-testing2.png)
+   ![Virtual Device Testing](images/iot-virtual-device-testing4.png)
 
 # Continue Workshop
 
